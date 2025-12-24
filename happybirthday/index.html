@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Happy Birthday</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@900&family=Roboto:ital,wght@1,400&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            margin: 0; overflow: hidden; background-color: #020202;
+            font-family: 'Cinzel', serif; user-select: none;
+        }
+        canvas { display: block; position: absolute; top: 0; left: 0; z-index: 1; }
+
+        /* --- BALLOONS --- */
+        #balloon-container {
+            height: 100vh; width: 100%; position: absolute; top: 0; left: 0;
+            padding: 1em; box-sizing: border-box; 
+            overflow: hidden; pointer-events: none; z-index: 10;
+        }
+        .balloon {
+            height: 125px; width: 105px; border-radius: 75% 75% 70% 70%;
+            position: absolute; bottom: -150px; opacity: 0.9;
+            display: flex; justify-content: center; align-items: center;
+            font-family: 'Cinzel', serif; font-weight: 900; font-size: 50px; 
+            color: rgba(255,255,255,0.9);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+        .balloon:before {
+            content: ""; height: 75px; width: 1px; padding: 1px;
+            background-color: rgba(255,255,255,0.5); display: block; position: absolute;
+            top: 125px; left: 0; right: 0; margin: auto;
+        }
+        .balloon:after {
+            content: "▲"; text-align: center; display: block; position: absolute;
+            color: inherit; top: 120px; left: 0; right: 0; margin: auto; font-size: 16px;
+        }
+        @keyframes floatUp { 
+            from { transform: translateY(0) rotate(0deg); opacity: 1; } 
+            to { transform: translateY(-120vh) rotate(10deg); opacity: 0; } 
+        }
+
+        /* --- UI LAYOUT --- */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 100; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; text-align: center;
+            pointer-events: none;
+            /* FIX: Padding for mobile to prevent overflow */
+            padding: 20px; 
+            box-sizing: border-box;
+        }
+        #start-screen {
+            pointer-events: auto; background: rgba(10, 10, 10, 0.85); padding: 40px;
+            border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 0 30px rgba(0,0,0,0.8); backdrop-filter: blur(5px);
+            transition: opacity 0.5s;
+            max-width: 90%;
+        }
+        
+        input {
+            background: transparent; border: none; border-bottom: 2px solid #C9A0DC;
+            color: white; font-family: 'Cinzel', serif; font-size: 20px;
+            padding: 10px; width: 100%; max-width: 300px; text-align: center; outline: none;
+            margin-bottom: 20px; display: block; box-sizing: border-box;
+        }
+        
+        .btn-group { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; }
+        
+        button {
+            padding: 15px 40px; font-size: 16px;
+            background: linear-gradient(45deg, #C9A0DC, #FFB7C5);
+            border: none; color: #000; cursor: pointer;
+            border-radius: 50px; font-family: 'Cinzel', serif; font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(201,160,220,0.4); }
+        button.secondary { background: transparent; border: 1px solid #C9A0DC; color: #C9A0DC; padding: 15px 20px; }
+        button.secondary:hover { background: #C9A0DC; color: #000; }
+
+        /* --- TEXT DISPLAY --- */
+        #main-text {
+            font-size: clamp(35px, 7vw, 80px); color: #fff;
+            text-shadow: 0 0 20px rgba(255,255,255,0.8);
+            opacity: 0; transform: scale(0.8);
+            transition: opacity 2s cubic-bezier(0.1, 0.7, 1.0, 0.1), transform 2s ease-out;
+            line-height: 1.2;
+            width: 100%;
+            word-wrap: break-word; /* Mobile Fix */
+        }
+        
+        /* Wish Text Styling (UPDATED) */
+        #sub-text {
+            font-family: 'Roboto', sans-serif; /* Standard Font */
+            font-weight: 400;
+            font-style: italic; /* Italic style */
+            font-size: 32px; 
+            color: #FFD700; 
+            text-shadow: 0 0 10px gold; 
+            margin-top: 20px;
+            min-height: 40px;
+            
+            /* Mobile Layout Fixes */
+            width: 100%;
+            max-width: 800px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            padding: 0 10px;
+            line-height: 1.4;
+        }
+        @media (max-width: 600px) {
+            #sub-text { font-size: 22px; } 
+        }
+
+        .show-text { opacity: 1 !important; transform: scale(1) translateY(0) !important; }
+        .hidden { opacity: 0 !important; pointer-events: none !important; }
+
+        /* --- SHARE MODAL --- */
+        #share-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 200;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        #share-modal.active { opacity: 1; pointer-events: auto; }
+        .modal-content {
+            background: #1a1a1a; padding: 30px; border-radius: 15px;
+            text-align: center; border: 1px solid #C9A0DC;
+            color: white; width: 90%; max-width: 400px;
+        }
+        #share-link-input { width: 100%; font-size: 14px; margin-bottom: 15px; color: #C9A0DC; border: 1px solid #333; background: #000; padding: 5px; }
+
+        /* --- BACK BUTTON --- */
+        #back-btn {
+            position: fixed; top: 20px; right: 20px; z-index: 300;
+            background: rgba(0,0,0,0.5); color: #C9A0DC; border: 1px solid #C9A0DC;
+            border-radius: 50%; width: 40px; height: 40px; cursor: pointer;
+            font-size: 20px; line-height: 40px; text-align: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.5s;
+        }
+        #back-btn:hover { background: #C9A0DC; color: #000; }
+    </style>
+</head>
+<body>
+
+    <div id="balloon-container"></div>
+
+    <div id="ui-layer">
+        <div id="start-screen">
+            <input type="text" id="nameInput" placeholder="Friend's Name" maxlength="12">
+            <input type="text" id="wishInput" placeholder="Short Wish (max 100 chars)" maxlength="100">
+            <div class="btn-group">
+                <button class="secondary" onclick="generateLink()">Share</button>
+                <button onclick="startShow()">Preview</button>
+            </div>
+        </div>
+
+        <div id="main-text"></div>
+        <div id="sub-text"></div>
+
+        <div id="expired-msg" class="hidden" style="background:rgba(0,0,0,0.9); padding:30px; border-radius:10px; color:#ff6b6b;">
+            <h2>Link Expired</h2>
+            <p>This magic link has vanished.</p>
+            <button onclick="returnToEdit()" style="margin-top:10px;">Create New</button>
+        </div>
+    </div>
+
+    <div id="back-btn" onclick="returnToEdit()">&#8634;</div>
+
+    <div id="share-modal">
+        <div class="modal-content">
+            <h3 style="font-family:'Cinzel', serif; color:#C9A0DC">Share the Magic</h3>
+            <p style="font-size: 14px; color: #ccc; font-family: sans-serif;">Link valid for 15 minutes.</p>
+            <input type="text" id="share-link-input" readonly>
+            <button onclick="copyLink()">Copy</button>
+            <button class="secondary" onclick="closeModal()" style="margin-top: 10px;">Close</button>
+        </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+<script>
+    // --- AUDIO ENGINE ---
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = new AudioContext();
+
+
+// --- MUSIC BOX ENGINE ---
+    let musicInterval;
+    const tune = [
+        {n:392,d:300}, {n:392,d:300}, {n:440,d:600}, {n:392,d:600}, {n:523,d:600}, {n:493,d:1200}, // Happy Birthday to You
+        {n:392,d:300}, {n:392,d:300}, {n:440,d:600}, {n:392,d:600}, {n:587,d:600}, {n:523,d:1200}, // Happy Birthday to You
+        {n:392,d:300}, {n:392,d:300}, {n:783,d:600}, {n:659,d:600}, {n:523,d:600}, {n:493,d:600}, {n:440,d:600}, // Happy Birthday Dear...
+        {n:698,d:300}, {n:698,d:300}, {n:659,d:600}, {n:523,d:600}, {n:587,d:600}, {n:523,d:1200}  // Happy Birthday to You
+    ];
+
+    function playNote(freq, dur) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine'; // Soft, bell-like sound
+        osc.frequency.value = freq;
+        
+        // Soft envelope (Volume)
+        gain.gain.setValueAtTime(0, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 0.05); // Very quiet (0.08)
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (dur/1000));
+        
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + (dur/1000));
+    }
+
+    function startMusic() {
+        let i = 0;
+        function playNext() {
+            if(i >= tune.length) i = 0; // Loop forever
+            playNote(tune[i].n, tune[i].d);
+            musicInterval = setTimeout(playNext, tune[i].d);
+            i++;
+        }
+        playNext();
+    }
+
+    function stopMusic() {
+        clearTimeout(musicInterval);
+    }
+
+    const bufferSize = audioCtx.sampleRate * 2; 
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+   function playExplosionSound() {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const t = audioCtx.currentTime;
+
+        // 1. The "Boom" (Deep Bass Thud) - Volume reduced
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle'; 
+        osc.frequency.setValueAtTime(80, t); // Lower pitch start (was 120)
+        osc.frequency.exponentialRampToValueAtTime(10, t + 0.5);
+        
+        // Reduced Volume (was 0.3)
+        gain.gain.setValueAtTime(0.15, t); 
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+        
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(t + 0.5);
+
+        // 2. The "Crackle" (Muffled) - Sharpness removed
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        const noiseGain = audioCtx.createGain();
+        const filter = audioCtx.createBiquadFilter();
+        
+        // Low Pass Filter: Cuts off high "hissy" frequencies
+        filter.type = 'lowpass'; 
+        filter.frequency.value = 600; // Much lower (was 1200) to remove "sharpness"
+
+        // Reduced Volume (was 0.5)
+        noiseGain.gain.setValueAtTime(0.1, t); 
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+
+        noise.connect(filter); filter.connect(noiseGain);
+        noiseGain.connect(audioCtx.destination);
+        noise.start(); noise.stop(t + 0.4);
+    }
+
+   function playLaunchSound() {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        osc.type = 'sine';
+        // Lower frequency range (was 300->600)
+        osc.frequency.setValueAtTime(150, audioCtx.currentTime); 
+        osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.5);
+        
+        // Much softer volume (was 0.05)
+        gainNode.gain.setValueAtTime(0.02, audioCtx.currentTime); 
+        gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+        
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.5);
+    }
+
+    // --- VISUALS ---
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    let width, height;
+    let fireworks = [], particles = [], skyGlows = [];
+    
+    function resize() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // --- BALLOONS ---
+    function releaseBalloons(nameText) {
+        const container = document.getElementById("balloon-container");
+        container.innerHTML = ""; 
+        const cleanName = nameText.replace(/\s/g, ''); 
+        const letters = cleanName.split('');
+        
+        letters.forEach((char, index) => {
+            const b = document.createElement("div");
+            b.className = "balloon";
+            b.innerText = char.toUpperCase();
+            const r = Math.floor(Math.random() * 255);
+            const g = Math.floor(Math.random() * 255);
+            const bVal = Math.floor(Math.random() * 255);
+            b.style.backgroundColor = `rgba(${r},${g},${bVal},0.7)`;
+            b.style.color = `rgba(255,255,255,0.9)`; 
+            b.style.boxShadow = `inset -7px -3px 10px rgba(${r - 10},${g - 10},${bVal - 10},0.7)`;
+            const section = width / letters.length;
+            const leftPos = (section * index) + (section/4);
+            b.style.left = leftPos + 'px';
+            b.style.animation = `floatUp ${Math.random() * 5 + 5}s ease-in forwards`;
+            container.appendChild(b);
+        });
+    }
+
+    // --- PHYSICS ---
+    class SkyGlow {
+        constructor(x, y, hue) {
+            this.x = x; this.y = y; this.hue = hue;
+            this.alpha = 0.08; this.radius = width * 0.5; this.decay = 0.005;
+        }
+        update() { this.alpha -= this.decay; return this.alpha <= 0; }
+        draw() {
+            ctx.save(); ctx.globalCompositeOperation = 'lighter';
+            const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius);
+            gradient.addColorStop(0, `hsla(${this.hue}, 100%, 50%, ${this.alpha})`);
+            gradient.addColorStop(1, `hsla(${this.hue}, 100%, 50%, 0)`);
+            ctx.fillStyle = gradient; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        }
+    }
+
+    class Firework {
+        constructor(isFirst = false) {
+            this.x = isFirst ? width / 2 : Math.random() * width;
+            this.y = height;
+            this.targetY = isFirst ? height * 0.25 : Math.random() * (height * 0.5);
+            this.speed = 2; this.angle = -Math.PI / 2;
+            this.vx = Math.cos(this.angle) * this.speed; this.vy = Math.sin(this.angle) * this.speed;
+            this.hue = Math.floor(Math.random() * 360);
+            this.history = []; this.historyLimit = 15; this.isFirst = isFirst;
+            if(!isFirst) playLaunchSound(); 
+        }
+        update() {
+            this.history.push({x: this.x, y: this.y});
+            if(this.history.length > this.historyLimit) this.history.shift();
+            let dist = this.targetY - this.y;
+            this.y += (dist * 0.04) - 3; this.x += (Math.random() - 0.5) * 1.5;
+            if (Math.abs(dist) < 10 || this.y <= this.targetY) {
+                createExplosion(this.x, this.y, this.hue, this.isFirst); return true; 
+            }
+            return false;
+        }
+        draw() {
+            ctx.beginPath();
+            for(let i = 0; i < this.history.length; i++) { let p = this.history[i]; ctx.lineTo(p.x, p.y); }
+            ctx.strokeStyle = `hsl(${this.hue}, 100%, 50%)`; ctx.lineWidth = 2; ctx.stroke();
+        }
+    }
+
+    class Particle {
+        constructor(x, y, hue, isHeart) {
+            this.x = x; this.y = y; this.hue = hue;
+            this.brightness = Math.random() * 20 + 50; 
+            let angle = Math.random() * Math.PI * 2; let speed = Math.random() * 5 + 1;
+            if (isHeart) {
+                let t = Math.random() * Math.PI * 2;
+                let hx = 16 * Math.pow(Math.sin(t), 3);
+                let hy = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
+                this.vx = hx * 0.15; this.vy = hy * 0.15; 
+            } else {
+                this.vx = Math.cos(angle) * speed; this.vy = Math.sin(angle) * speed;
+            }
+            this.friction = 0.95; this.gravity = 0.05; this.alpha = 1; this.decay = Math.random() * 0.015 + 0.005;
+            this.history = []; this.historyLimit = 6;
+        }
+        update() {
+            this.history.push({x: this.x, y: this.y});
+            if(this.history.length > this.historyLimit) this.history.shift();
+            this.vx *= this.friction; this.vy *= this.friction; this.vy += this.gravity;
+            this.x += this.vx; this.y += this.vy; this.alpha -= this.decay;
+            return this.alpha <= 0;
+        }
+        draw() {
+            ctx.save(); ctx.globalAlpha = this.alpha; ctx.beginPath();
+            ctx.moveTo(this.history[0]?.x || this.x, this.history[0]?.y || this.y);
+            for(let i = 0; i < this.history.length; i++) ctx.lineTo(this.history[i].x, this.history[i].y);
+            ctx.strokeStyle = `hsl(${this.hue}, 100%, ${this.brightness}%)`;
+            ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.stroke(); ctx.restore();
+        }
+    }
+
+    function createExplosion(x, y, hue, isBig) {
+        playExplosionSound(); 
+        skyGlows.push(new SkyGlow(x, y, hue));
+        let count = isBig ? 150 : 60;
+        let isHeart = !isBig && Math.random() < 0.2; 
+        for (let i = 0; i < count; i++) particles.push(new Particle(x, y, hue, isHeart));
+    }
+
+    function animate() {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; ctx.fillRect(0, 0, width, height);
+        ctx.globalCompositeOperation = 'lighter'; 
+        for (let i = skyGlows.length - 1; i >= 0; i--) { skyGlows[i].draw(); if (skyGlows[i].update()) skyGlows.splice(i, 1); }
+        for (let i = fireworks.length - 1; i >= 0; i--) { fireworks[i].draw(); if (fireworks[i].update()) fireworks.splice(i, 1); }
+        for (let i = particles.length - 1; i >= 0; i--) { particles[i].draw(); if (particles[i].update()) particles.splice(i, 1); }
+        if (celebrationStarted && Math.random() < 0.04) fireworks.push(new Firework());
+        requestAnimationFrame(animate);
+    }
+
+    // --- LOGIC ---
+    let celebrationStarted = false;
+    let typeWriterTimeout;
+
+    function typeWriter(text, elementId, speed = 80) {
+        const el = document.getElementById(elementId);
+        el.innerHTML = "";
+        let i = 0;
+        function type() {
+            if (i < text.length) {
+                el.innerHTML += text.charAt(i);
+                i++;
+                typeWriterTimeout = setTimeout(type, speed);
+            }
+        }
+        type();
+    }
+
+    function startShow(sharedName, sharedWish) {
+        let name = sharedName || document.getElementById('nameInput').value || "Friend";
+        let wish = sharedWish || document.getElementById('wishInput').value || "Best Wishes";
+
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('expired-msg').classList.add('hidden');
+        
+        // Show Back Button
+        const backBtn = document.getElementById('back-btn');
+        backBtn.style.opacity = '1'; 
+        backBtn.style.pointerEvents = 'auto';
+
+        const titleEl = document.getElementById('main-text');
+        if(window.innerWidth < 600) {
+            titleEl.innerHTML = `HAPPY<br>BIRTHDAY<br>${name.toUpperCase()}`;
+        } else {
+            titleEl.innerHTML = `HAPPY BIRTHDAY<br>${name.toUpperCase()}`;
+        }
+
+
+
+
+
+
+        startMusic(); 
+      
+    
+
+
+
+
+
+
+
+        fireworks.push(new Firework(true)); 
+        
+        setTimeout(() => {
+            titleEl.classList.add('show-text');
+            releaseBalloons(name);
+            celebrationStarted = true;
+        }, 1500);
+
+        setTimeout(() => {
+            typeWriter(wish, 'sub-text');
+        }, 3000);
+
+        if(!celebrationStarted) animate();
+    }
+
+    // --- RETURN TO EDIT (Does not reload page) ---
+    function returnToEdit() {
+        celebrationStarted = false;
+stopMusic();
+        clearTimeout(typeWriterTimeout);
+        
+        // Hide Animation Elements
+        document.getElementById('main-text').classList.remove('show-text');
+        document.getElementById('sub-text').classList.remove('show-text');
+        document.getElementById('sub-text').innerHTML = ""; // Clear typed text
+        
+        // Hide Back Button
+        const backBtn = document.getElementById('back-btn');
+        backBtn.style.opacity = '0';
+        backBtn.style.pointerEvents = 'none';
+
+        // Clear Balloons
+        document.getElementById("balloon-container").innerHTML = "";
+
+        // Show Start Screen
+        document.getElementById('start-screen').classList.remove('hidden');
+        document.getElementById('expired-msg').classList.add('hidden');
+    }
+
+    // --- LINK LOGIC ---
+    const TIME_LIMIT = 15 * 60 * 1000; 
+
+    function generateLink() {
+        const name = document.getElementById('nameInput').value;
+        const wish = document.getElementById('wishInput').value;
+        if(!name || !wish) return alert("Please fill details first.");
+        
+        const data = { n: name, w: wish, t: Date.now() };
+        const str = btoa(JSON.stringify(data));
+        const url = `${window.location.origin}${window.location.pathname}?d=${str}`;
+        
+        document.getElementById('share-link-input').value = url;
+        document.getElementById('share-modal').classList.add('active');
+    }
+
+    function copyLink() {
+        document.getElementById('share-link-input').select();
+        document.execCommand("copy");
+        alert("Copied!");
+    }
+
+    function closeModal() { document.getElementById('share-modal').classList.remove('active'); }
+
+    // Check Link on Load
+    window.onload = function() {
+        const params = new URLSearchParams(window.location.search);
+        const dataStr = params.get('d');
+        if (dataStr) {
+            try {
+                const data = JSON.parse(atob(dataStr));
+                if (Date.now() - data.t > TIME_LIMIT) {
+                    document.getElementById('start-screen').classList.add('hidden');
+                    document.getElementById('expired-msg').classList.remove('hidden');
+                } else {
+                    document.getElementById('nameInput').value = data.n;
+                    document.getElementById('wishInput').value = data.w;
+                    startShow(data.n, data.w);
+                }
+            } catch(e) { console.error("Bad Link"); }
+        }
+    };
+
+</script>
+</body>
+</html>
