@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Happy Birthday</title>
+    <title>The Symphony</title>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@900&family=Roboto:ital,wght@1,400&display=swap" rel="stylesheet">
     
     <style>
@@ -515,13 +515,16 @@ stopMusic();
     // --- LINK LOGIC ---
     const TIME_LIMIT = 15 * 60 * 1000; 
 
-    function generateLink() {
+function generateLink() {
         const name = document.getElementById('nameInput').value;
         const wish = document.getElementById('wishInput').value;
         if(!name || !wish) return alert("Please fill details first.");
         
         const data = { n: name, w: wish, t: Date.now() };
-        const str = btoa(JSON.stringify(data));
+        
+        // FIX: Use encodeURIComponent to handle Emojis
+        const str = btoa(encodeURIComponent(JSON.stringify(data)));
+        
         const url = `${window.location.origin}${window.location.pathname}?d=${str}`;
         
         document.getElementById('share-link-input').value = url;
@@ -537,12 +540,16 @@ stopMusic();
     function closeModal() { document.getElementById('share-modal').classList.remove('active'); }
 
     // Check Link on Load
+// Check Link on Load
     window.onload = function() {
         const params = new URLSearchParams(window.location.search);
         const dataStr = params.get('d');
         if (dataStr) {
             try {
-                const data = JSON.parse(atob(dataStr));
+                // FIX: Use decodeURIComponent to turn the code back into Emojis
+                const decodedStr = decodeURIComponent(atob(dataStr));
+                const data = JSON.parse(decodedStr);
+
                 if (Date.now() - data.t > TIME_LIMIT) {
                     document.getElementById('start-screen').classList.add('hidden');
                     document.getElementById('expired-msg').classList.remove('hidden');
@@ -551,7 +558,9 @@ stopMusic();
                     document.getElementById('wishInput').value = data.w;
                     startShow(data.n, data.w);
                 }
-            } catch(e) { console.error("Bad Link"); }
+            } catch(e) { 
+                console.error("Bad Link or Encoding Error", e); 
+            }
         }
     };
 
